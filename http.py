@@ -17,7 +17,10 @@ class ErrorCode(object):
 def dict2str(d):
     s = ''
     for i in d:
-        s = s + i + ': ' + d[i] + '\r\n'
+        val = ''
+        if d[i] is not None:
+            val = d[i]
+        s = s + i + ': ' + val + '\r\n'
     return s
 
 
@@ -236,4 +239,3 @@ class HttpRequest(object):
 
     def get_response_head(self):
         return dict2str(self.response_head)
-
