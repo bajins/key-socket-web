@@ -14,10 +14,10 @@ def login_page(request):
 def login(request):
     if request.Method != "POST":
         return json.dumps({'code': 401, 'msg': "请求方式错误"})
-    name = request.request_data["name"]
+    name = request.request_data.get("name", "")
     if name.strip() == '':
         return json.dumps({'code': 300, 'msg': "请输入名称"})
-    password = request.request_data["password"]
+    password = request.request_dataget("password", "")
     if password.strip() == '':
         return json.dumps({'code': 300, 'msg': "请输入密码"})
 
