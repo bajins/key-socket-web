@@ -6,6 +6,7 @@ from content_type import judge_type
 
 
 class ErrorCode(object):
+    # OK = "HTTP/1.1 %d\r\n" % object
     OK = "HTTP/1.1 200 OK\r\n"
     NOT_FOUND = "HTTP/1.1 404 Not Found\r\n"
 
@@ -147,6 +148,7 @@ class HttpRequest(object):
         if not os.path.isfile(HttpRequest.RootDir + path) and path not in main.urlpatterns:
             f = open(HttpRequest.NotFoundHtml, 'r')
             self.response_line = ErrorCode.NOT_FOUND
+            # self.response_line = http_status(HTTPStatus.NOT_FOUND)
             self.response_head['Content-Type'] = 'text/html'
             self.response_body = f.read()
         elif path in main.urlpatterns:
