@@ -1,8 +1,11 @@
 # -*- coding=utf-8 -*-
 import socket
+import sys
 import threading
 import queue
-from http import HttpRequest
+
+import utils
+from http_util import HttpRequest
 
 
 # 每个任务线程
@@ -36,26 +39,28 @@ def tcp_link(sock, addr):
     # 获取到客户端发来的请求体
     request = sock.recv(1024).decode('utf-8')
     http_req = HttpRequest()
-    http_req.pass_request(request)
-    sock.send((http_req.response_line + http_req.get_response_head() + "\r\n").encode('utf-8'))
-    if isinstance(http_req.response_body, bytes):
-        sock.send(http_req.response_body)
-    else:
-        sock.send(http_req.response_body.encode('utf-8'))
+    http_req.parse_request(request)
+    sock.send(http_req.get_response())
     sock.close()
 
 
-def start_server():
+def start_server(port):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('127.0.0.1', 9999))
+    s.bind(('', port))
     s.listen(10)
     thread_pool = ThreadPoolManger(5)
-    print('服务启动成功 http://%s:%d' % ('127.0.0.1', 9999))
+    print('服务启动成功 http://%s:%d' % (utils.get_host_ip(), port))
     while True:
         sock, addr = s.accept()
         thread_pool.add_work(tcp_link, *(sock, addr))
 
 
+def argvs():
+    if len(sys.argv) < 2:
+        return 9999
+    # return string.atoi(sys.argv[1])
+    return int(sys.argv[1])
+
+
 if __name__ == '__main__':
-    start_server()
-    pass
+    start_server(argvs())

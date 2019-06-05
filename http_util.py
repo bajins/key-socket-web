@@ -1,35 +1,13 @@
-# -*- coding:utf-8 -*-
-import json
 import os
 import xml.dom.minidom
-
-# 返回码
 import main
-from contenttype import judge_type
+import utils
+from content_type import judge_type
 
 
 class ErrorCode(object):
     OK = "HTTP/1.1 200 OK\r\n"
     NOT_FOUND = "HTTP/1.1 404 Not Found\r\n"
-
-
-# 将字典转成字符串
-def dict2str(d):
-    s = ''
-    for i in d:
-        val = ''
-        if d[i] is not None:
-            val = d[i]
-        s = s + i + ': ' + val + '\r\n'
-    return s
-
-
-def check_json(input_str):
-    try:
-        json.loads(input_str)
-        return True
-    except BaseException:
-        return False
 
 
 class Session(object):
@@ -155,7 +133,7 @@ class HttpRequest(object):
                     self.request_data[k] = v
 
     # 处理请求
-    def pass_request(self, request):
+    def parse_request(self, request):
         if len(request.split('\r\n', 1)) != 2:
             return
         # 解析请求体
@@ -181,7 +159,7 @@ class HttpRequest(object):
             self.response_line = ErrorCode.OK
             # 动态导入模块
             # m = __import__("root.main")
-            if check_json(result):
+            if utils.check_json(result):
                 self.response_head['Content-Type'] = 'application/json;charset=utf-8'
             else:
                 self.response_head['Content-Type'] = 'text/html;charset=utf-8'
@@ -235,5 +213,10 @@ class HttpRequest(object):
         hl.update(cookie.encode(encoding='utf-8'))
         return cookie
 
-    def get_response_head(self):
-        return dict2str(self.response_head)
+    # 获取响应体
+    def get_response(self):
+        if isinstance(self.response_body, bytes):
+            body = self.response_body
+        else:
+            body = self.response_body.encode('utf-8')
+        return (self.response_line + utils.dict2str(self.response_head) + "\r\n").encode('utf-8') + body
