@@ -1,6 +1,6 @@
 import json
 
-from xshellkey import generateKey
+from xshellkey import generate_key
 
 urlpatterns = {"": "main.index", "/": "main.index", "/login": "main.login", "/login-page": "main.login_page",
                "/getKey": "main.get_key"}
@@ -48,6 +48,6 @@ def get_key(request):
     if version.strip() == '':
         return json.dumps({'code': 300, 'msg': "请选择版本"})
 
-    key = generateKey(app.replace("+", " "), version)
+    key = generate_key(app.replace("+", " "), version)
     # 返回给用户  模版中使用到的users就是这里传递进去的
     return json.dumps({'code': 200, 'msg': "请求成功", 'key': key})
