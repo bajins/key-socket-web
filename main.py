@@ -1,6 +1,9 @@
 import json
 
-urlpatterns = {"": "main.index", "/": "main.index", "/login": "main.login", "/login-page": "main.login_page"}
+from xshellkey import generateKey
+
+urlpatterns = {"": "main.index", "/": "main.index", "/login": "main.login", "/login-page": "main.login_page",
+               "/getKey": "main.get_key"}
 
 
 def index(request):
@@ -30,3 +33,22 @@ def login(request):
     # with open('root/login.html', 'r') as f:
     #     data = f.read()
     # return data
+
+
+def get_key(request):
+    # 判断是否是post请求
+    if request.Method != 'POST':
+        return json.dumps({'code': 401, 'msg': "请求方式错误"})
+
+    # 这种获取参数方式如果参数不存在不会抛异常
+    app = request.request_data.get('app', "")
+    if app.strip() == '':
+        return json.dumps({'code': 300, 'msg': "请选择产品"})
+    # 这种获取参数方式如果参数不存在会抛异常
+    version = request.request_data.get('version', "")
+    if version.strip() == '':
+        return json.dumps({'code': 300, 'msg': "请选择版本"})
+
+    key = generateKey(app.replace("+", " "), version)
+    # 返回给用户  模版中使用到的users就是这里传递进去的
+    return json.dumps({'code': 200, 'msg': "请求成功", 'key': key})
