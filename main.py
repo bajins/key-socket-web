@@ -40,11 +40,10 @@ def get_key(request):
     if request.Method != 'POST':
         return json.dumps({'code': 401, 'msg': "请求方式错误"})
 
-    # 这种获取参数方式如果参数不存在不会抛异常
     app = request.request_data.get('app', "")
     if app.strip() == '':
         return json.dumps({'code': 300, 'msg': "请选择产品"})
-    # 这种获取参数方式如果参数不存在会抛异常
+
     version = request.request_data.get('version', "")
     if version.strip() == '':
         return json.dumps({'code': 300, 'msg': "请选择版本"})
