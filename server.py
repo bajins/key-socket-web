@@ -34,7 +34,7 @@ class ThreadPoolManger:
 
 def tcp_link(sock, addr):
     # 获取到客户端发来的请求体
-    request = sock.recv(1024)
+    request = sock.recv(1024).decode('utf-8')
     http_req = HttpRequest()
     http_req.pass_request(request)
     sock.send((http_req.response_line + http_req.get_response_head() + "\r\n").encode('utf-8'))

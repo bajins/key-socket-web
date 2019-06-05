@@ -156,7 +156,6 @@ class HttpRequest(object):
 
     # 处理请求
     def pass_request(self, request):
-        request = request.decode('utf-8')
         if len(request.split('\r\n', 1)) != 2:
             return
         # 解析请求体
@@ -183,7 +182,6 @@ class HttpRequest(object):
             # 动态导入模块
             # m = __import__("root.main")
             if check_json(result):
-                result = result.encode('utf-8')
                 self.response_head['Content-Type'] = 'application/json;charset=utf-8'
             else:
                 self.response_head['Content-Type'] = 'text/html;charset=utf-8'
