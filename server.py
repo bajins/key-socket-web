@@ -5,7 +5,8 @@ import threading
 import queue
 
 import utils
-from http_util import HttpRequest
+from utils import util
+from utils.http_util import HttpRequest
 
 
 # 每个任务线程
@@ -49,7 +50,7 @@ def start_server(port):
     s.bind(('', port))
     s.listen(10)
     thread_pool = ThreadPoolManger(5)
-    print('服务启动成功 http://%s:%d' % (utils.get_host_ip(), port))
+    print('服务启动成功 http://%s:%d' % (util.get_host_ip(), port))
     while True:
         sock, addr = s.accept()
         thread_pool.add_work(tcp_link, *(sock, addr))

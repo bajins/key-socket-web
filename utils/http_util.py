@@ -1,8 +1,14 @@
+import hashlib
+import json
 import os
 import xml.dom.minidom
+from datetime import time
+from urllib import request
+
+from utils import log_util
 import main
-import utils
-from content_type import judge_type
+from utils import util
+from utils.content_type import judge_type
 
 
 class ErrorCode(object):
@@ -45,47 +51,64 @@ class Session(object):
             dom.writexml(f, addindent='\t', newl='\n', encoding='utf-8')
 
 
-class HttpRequest(object):
-    RootDir = 'root'
-    NotFoundHtml = RootDir + '/404.html'
-    CookieDir = RootDir + '/cookie/'
+DEFAULT_ERROR_HTML = """\
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <title>Error response</title>
+</head>
+<body>
+<div style="width: 100%;text-align:center;">
+    <h1>404 Not Found</h1>
+</div>
+</body>
+<html>
+"""
+# 获取到当前执行文件目录
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+STATIC_DIR = 'static'
+COOKIE_DIR = STATIC_DIR + '/cookie/'
 
-    def __init__(self):
-        self.Method = None
-        self.Url = None
-        self.Protocol = None
-        self.Host = None
-        self.Port = None
-        self.Connection = None
-        self.CacheControl = None
-        self.UserAgent = None
-        self.Accept = None
-        self.ContentType = None
-        self.AcceptEncoding = None
-        self.AcceptLanguage = None
-        self.Cookie = None
-        self.csrf_token = None
-        self.session = None
-        self.request_data = dict()
-        self.response_line = ''
-        self.response_head = dict()
-        self.response_body = ''
+
+class HttpRequest(object):
+    Method = None
+    Url = None
+    Protocol = None
+    Host = None
+    Port = None
+    Connection = None
+    CacheControl = None
+    UserAgent = None
+    Accept = None
+    ContentType = None
+    AcceptEncoding = None
+    AcceptLanguage = None
+    Cookie = None
+    csrf_token = None
+    session = None
+    request_line = None
+    request_data = dict()
+    response_line = ''
+    response_head = dict()
+    response_body = ''
 
     # 解析请求体
-    def resolve_headers(self, request):
+    def resolve_headers(self, req):
         # 解析请求方法、url、协议
-        request_line, headers = request.split('\r\n', 1)
+        request_line, headers = req.split('\r\n', 1)
+        self.request_line = request_line
         header_list = request_line.split(' ')
         self.Method = header_list[0].upper()
         # 请求地址和参数分割
-        ur = header_list[1].split("?")
-        self.Url = ur[0]
+        mpath, margs = request.splitquery(header_list[1])  # ?分割
+        self.Url = mpath
         self.Protocol = header_list[2]
         # 如果有携带参数，并且请求方式为GET
-        if len(ur) > 1 and self.Method == "GET":
-            parameters = ur[1].split('&')
+        if util.not_empty(margs) and self.Method == "GET":
+            parameters = margs.split('&')
             for parameter in parameters:
-                if parameter != '':
+                if util.not_empty(parameter):
                     key, val = parameter.split('=', 1)
                     self.request_data[key] = val
 
@@ -94,28 +117,30 @@ class HttpRequest(object):
         head_options = request_headers[0].split('\r\n')
         for header in head_options:
             key, val = header.split(': ', 1)
-            if key.lower() == "Host".lower():
+            key = key.lower()
+            if key == "Host".lower():
                 self.Host = val
-            elif key.lower() == "Connection".lower():
+            elif key == "Connection".lower():
                 self.Connection = val
-            elif key.lower() == "Cache-Control".lower():
+            elif key == "Cache-Control".lower():
                 self.CacheControl = val
-            elif key.lower() == "User-Agent".lower():
+            elif key == "User-Agent".lower():
                 self.UserAgent = val
-            elif key.lower() == "Accept".lower():
+            elif key == "Accept".lower():
                 self.Accept = val
-            elif key.lower() == "Content-Type".lower():
+            elif key == "Content-Type".lower():
                 self.ContentType = val
-            elif key.lower() == "Accept-Encoding".lower():
+            elif key == "Accept-Encoding".lower():
                 self.AcceptEncoding = val
-            elif key.lower() == "Accept-Language".lower():
+            elif key == "Accept-Language".lower():
                 self.AcceptLanguage = val
-            elif key.lower() == "Cookie".lower():
-                k, v = val.split('; ', 1)
-                if k.lower() == "csrftoken":
-                    self.csrf_token = v
-                else:
-                    self.Cookie = v
+            elif key == "Cookie".lower():
+                ck = val.split('; ')
+                for k in ck:
+                    if k.lower() == "csrftoken":
+                        self.csrf_token = k.split("=")[0]
+                    else:
+                        self.Cookie = k
             # self.head[key] = val
 
         # 解析参数，并且请求方式为POST
@@ -134,23 +159,29 @@ class HttpRequest(object):
                     self.request_data[k] = v
 
     # 处理请求
-    def parse_request(self, request):
-        if len(request.split('\r\n', 1)) != 2:
+    def parse_request(self, req):
+        if len(req.split('\r\n', 1)) != 2:
             return
         # 解析请求体
-        self.resolve_headers(request)
+        self.resolve_headers(req)
+        log_util.log_request(self.request_line)
 
         self.url_request(self.Url)
 
     # 根据url路由返回请求
     def url_request(self, path):
+
+        if path.find("static") == -1:
+            file_path = STATIC_DIR + path
+        elif path.find("/static") != -1:
+            file_path = path[path.find("static"):len(path)]
+
         # 如果不是静态文件
-        if not os.path.isfile(HttpRequest.RootDir + path) and path not in main.urlpatterns:
-            f = open(HttpRequest.NotFoundHtml, 'r')
+        if not os.path.isfile(file_path) and path not in main.urlpatterns:
             self.response_line = ErrorCode.NOT_FOUND
             # self.response_line = http_status(HTTPStatus.NOT_FOUND)
             self.response_head['Content-Type'] = 'text/html'
-            self.response_body = f.read()
+            self.response_body = DEFAULT_ERROR_HTML.encode("utf-8")
         elif path in main.urlpatterns:
             # 动态调用函数并传参
             result = eval(main.urlpatterns[path])(self)
@@ -161,7 +192,7 @@ class HttpRequest(object):
             self.response_line = ErrorCode.OK
             # 动态导入模块
             # m = __import__("root.main")
-            if utils.check_json(result):
+            if util.check_json(result):
                 self.response_head['Content-Type'] = 'application/json;charset=utf-8'
             else:
                 self.response_head['Content-Type'] = 'text/html;charset=utf-8'
@@ -170,20 +201,20 @@ class HttpRequest(object):
             self.response_head['Set-Cookie'] = self.Cookie
         # 是静态文件
         else:
-            path = HttpRequest.RootDir + path
             # 扩展名,只提供制定类型的静态文件
-            extension_name = os.path.splitext(path)[1]
+            extension_name = os.path.splitext(file_path)[1]
             extension_set = {'.css', '.html', '.js'}
             if extension_name in extension_set:
-                f = open(path, 'r', encoding='utf-8', errors='ignore')
                 self.response_line = ErrorCode.OK
-                self.response_head['Content-Type'] = judge_type(path)
-                self.response_body = f.read()
+                self.response_head['Content-Type'] = judge_type(file_path)
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as fd:
+                    data = fd.read()
+                self.response_body = data
             # 其他文件返回
             else:
                 self.response_line = ErrorCode.OK
-                self.response_head['Content-Type'] = judge_type(path)
-                with open(path, 'rb') as fd:
+                self.response_head['Content-Type'] = judge_type(file_path)
+                with open(file_path, 'rb') as fd:
                     data = fd.read()
                 self.response_body = data
 
@@ -192,24 +223,23 @@ class HttpRequest(object):
         # 没有提交cookie，创建cookie
         if self.Cookie is None:
             self.Cookie = self.generateCookie()
-            cookie_file = self.CookieDir + self.Cookie
+            cookie_file = self.COOKIE_DIR + self.Cookie
             self.session.cook_file = cookie_file
             self.session.write_xml()
         else:
-            cookie_file = self.CookieDir + self.Cookie
+            cookie_file = self.COOKIE_DIR + self.Cookie
             self.session.cook_file = cookie_file
             if os.path.exists(cookie_file):
                 self.session.load_from_xml()
             # 当前cookie不存在，自动创建
             else:
                 self.Cookie = self.generate_cookie()
-                cookie_file = self.CookieDir + self.Cookie
+                cookie_file = self.COOKIE_DIR + self.Cookie
                 self.session.cook_file = cookie_file
                 self.session.write_xml()
         return self.session
 
     def generate_cookie(self):
-        import time, hashlib
         cookie = str(int(round(time.time() * 1000)))
         hl = hashlib.md5()
         hl.update(cookie.encode(encoding='utf-8'))
@@ -217,8 +247,13 @@ class HttpRequest(object):
 
     # 获取响应体
     def get_response(self):
+        # 判断是否为bytes
         if isinstance(self.response_body, bytes):
             body = self.response_body
+        # 判断是否为str
+        elif isinstance(self.response_body, str):
+            body = self.response_body.encode('utf-8', errors='ignore')
         else:
-            body = self.response_body.encode('utf-8')
-        return (self.response_line + utils.dict2str(self.response_head) + "\r\n").encode('utf-8') + body
+            body = json.dumps(self.response_body, ensure_ascii=False).encode('utf-8', errors='ignore')
+
+        return (self.response_line + util.dict2str(self.response_head) + "\r\n").encode('utf-8') + body
