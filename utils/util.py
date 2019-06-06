@@ -10,14 +10,11 @@ def is_empty(obj):
         if obj is None or len(obj) <= 0 or obj.strip() == '':
             return True
 
-    elif isinstance(obj, dict):
-        if obj is None or len(obj) <= 0 or bool(obj):
-            return True
-    elif isinstance(obj, object):
+    elif isinstance(obj, set) or isinstance(obj, dict) or isinstance(obj, list):
         if obj is None or len(obj) <= 0 or bool(obj) or not any(obj):
             return True
     else:
-        if obj:
+        if obj or obj is None:
             return True
     return False
 
