@@ -63,6 +63,7 @@ def get_key(request):
     elif company == "mobatek":
         MajorVersion, MinorVersion = version.split('.')[0:2]
         GenerateLicense(LicenseType.Professional, 1, "woytu", int(MajorVersion), int(MinorVersion))
+        request.send_header("Content-Disposition", "attachment; filename=Custom.mxtpro")
 
         return "/public/Custom.mxtpro"
     elif company == "torchsoft":

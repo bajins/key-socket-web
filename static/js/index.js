@@ -65,44 +65,41 @@ function getKey() {
     let version = $("#version").val();
     if (app == "MobaXterm") {
         // 构造隐藏的form表单
-        let form = $('<form action="/getKey" method="post">' +
+        /*let form = $('<form action="/getKey" method="post">' +
             '<input type="text" name="company" value="' + company + '"/>' +
             '<input type="text" name="app" value="' + app + '"/>' +
             '<input type="text" name="version" value="' + version + '"/>' +
             '</form>');
         $(document.body).append(form);
-        form.submit().remove();
+        form.submit().remove();*/
 
-        /*$.ajax({
+        $.ajax({
             url: "/getKey",
             type: "POST",
             data: {company: company, app: app, version: version},
             contentType: "text",
-            success: function (result, status, request) {
-
-                //从response的headers中获取filename, 后端response.setHeader("Content-Disposition", "attachment; filename=xxxx.xxx") 设置的文件名;
-                // let contentDisposition = request.getResponseHeader['Content-Disposition'];
-                // let patt = new RegExp("filename=([^;]+\\.[^\\.;]+);*");
-                // let filename = "";
-                // // 如果从Content-Disposition中取到的文件名为空
-                // if (isEmpty(contentDisposition)) {
-                //     console.log(patt)
-                //     let f = request.config.params.filePath.split("/");
-                //     filename = f[f.length - 1];
-                // } else {
-                //     filename = patt.exec(contentDisposition)[1];
-                // }
-                // // 取文件名信息中的文件名,替换掉文件名中多余的符号
-                // filename = replace(filename, "\\\\", "", true);
-                // filename = replace(filename, "/", "", true);
-
-                let filename = "Custom.mxtpro";
+            success: function (result, status, xhr) {
+                // console.log(xhr.getAllResponseHeaders());
+                // 从response的headers中获取filename, 后端response.setHeader("Content-Disposition", "attachment; filename=xxxx.xxx") 设置的文件名;
+                let contentDisposition = xhr.getResponseHeader('Content-Disposition');
+                let patt = new RegExp("filename=([^;]+\\.[^\\.;]+);*");
+                let filename = "";
+                // 如果从Content-Disposition中取到的文件名为空
+                if (isEmpty(contentDisposition)) {
+                    let f = xhr.config.params.filePath.split("/");
+                    filename = f[f.length - 1];
+                } else {
+                    filename = patt.exec(contentDisposition)[1];
+                }
+                // 取文件名信息中的文件名,替换掉文件名中多余的符号
+                filename = replace(filename, "\\\\", "", true);
+                filename = replace(filename, "/", "", true);
 
                 let downloadElement = document.createElement('a');
                 downloadElement.style.display = 'none';
 
                 //这里res.data是返回的blob对象
-                let blob = new Blob([result], {type: 'application/actet-stream;charset=utf-8'});
+                let blob = new Blob([result], {type: 'application/octet-stream;charset=utf-8'});
                 // 创建下载的链接
                 let href = window.URL.createObjectURL(blob);
                 downloadElement.href = href;
@@ -116,7 +113,7 @@ function getKey() {
                 // 释放掉blob对象
                 window.URL.revokeObjectURL(href);
             }
-        })*/
+        })
     } else {
         $.ajax({
             url: "/getKey",

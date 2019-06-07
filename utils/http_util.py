@@ -178,7 +178,7 @@ class HttpRequest(object):
         if not os.path.isfile(file_path) and path not in main.urlpatterns:
             self.response_line = ErrorCode.NOT_FOUND
             # self.response_line = http_status(HTTPStatus.NOT_FOUND)
-            self.response_head['Content-Type'] = 'text/html'
+            self.send_header('Content-Type', 'text/html')
             self.response_body = DEFAULT_ERROR_HTML.encode("utf-8")
         elif path in main.urlpatterns:
             # 动态调用函数并传参
@@ -192,18 +192,18 @@ class HttpRequest(object):
             # 动态导入模块
             # m = __import__("root.main")
             if util.check_json(result):
-                self.response_head['Content-Type'] = 'application/json;charset=utf-8'
+                self.send_header('Content-Type', 'application/json;charset=utf-8')
             else:
-                self.response_head['Content-Type'] = 'text/html;charset=utf-8'
+                self.send_header('Content-Type', 'text/html;charset=utf-8')
 
             self.response_body = result
-            self.response_head['Set-Cookie'] = self.Cookie
+            self.send_header('Set-Cookie', self.Cookie)
         # 是静态文件
         else:
-            self.response_head['Content-Type'] = judge_type(file_path)
-            if file_path.find("/public") != -1:
-                filename = os.path.basename(file_path)
-                self.response_head["Content-Disposition"] = "attachment; filename=" + filename
+            self.send_header('Content-Type', judge_type(file_path))
+            # if file_path.find("/public") != -1:
+            #     filename = os.path.basename(file_path)
+            #     self.send_header("Content-Disposition", "attachment; filename=" + filename)
 
             # 扩展名,只提供制定类型的静态文件
             extension_name = os.path.splitext(file_path)[1]
@@ -220,6 +220,9 @@ class HttpRequest(object):
                     data = fd.read()
                 self.response_body = data
 
+    def send_header(self, keyword, value):
+        self.response_head[keyword] = value
+
     def process_session(self):
         self.session = Session()
         # 没有提交cookie，创建cookie
@@ -235,7 +238,6 @@ class HttpRequest(object):
                 self.session.load_from_xml()
             # 当前cookie不存在，自动创建
             else:
-                print(self.response_head)
                 self.Cookie = self.generate_cookie()
                 cookie_file = self.COOKIE_DIR + self.Cookie
                 self.session.cook_file = cookie_file
