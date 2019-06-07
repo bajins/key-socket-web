@@ -58,7 +58,7 @@ def start_server(port):
 
 def argvs():
     if len(sys.argv) < 2:
-        return 9998
+        return 9999
     # return string.atoi(sys.argv[1])
     return int(sys.argv[1])
 
