@@ -154,9 +154,10 @@ class HttpRequest(object):
                         self.request_data[param[1]] = param[2]
             else:
                 params = hd.split("&")
-                for param in params:
-                    k, v = param.split("=", 1)
-                    self.request_data[k] = v
+                if util.not_empty(params[0]):
+                    for param in params:
+                        k, v = param.split("=", 1)
+                        self.request_data[k] = v
 
     # 处理请求
     def parse_request(self, req):
@@ -171,21 +172,19 @@ class HttpRequest(object):
     # 根据url路由返回请求
     def url_request(self, path):
 
-        if path.find("static") == -1:
-            file_path = STATIC_DIR + path
-        elif path.find("/static") != -1:
-            file_path = path[path.find("static"):len(path)]
+        file_path = get_file_path(path)
 
         # 如果不是静态文件
         if not os.path.isfile(file_path) and path not in main.urlpatterns:
             self.response_line = ErrorCode.NOT_FOUND
             # self.response_line = http_status(HTTPStatus.NOT_FOUND)
-            self.response_head['Content-Type'] = 'text/html'
+            self.send_header('Content-Type', 'text/html')
             self.response_body = DEFAULT_ERROR_HTML.encode("utf-8")
         elif path in main.urlpatterns:
             # 动态调用函数并传参
             result = eval(main.urlpatterns[path])(self)
-            if result.find(".html") != -1:
+            # 如果返回的值是文件
+            if os.path.isfile(get_file_path(result)):
                 self.url_request(result)
                 return
 
@@ -193,30 +192,36 @@ class HttpRequest(object):
             # 动态导入模块
             # m = __import__("root.main")
             if util.check_json(result):
-                self.response_head['Content-Type'] = 'application/json;charset=utf-8'
+                self.send_header('Content-Type', 'application/json;charset=utf-8')
             else:
-                self.response_head['Content-Type'] = 'text/html;charset=utf-8'
+                self.send_header('Content-Type', 'text/html;charset=utf-8')
 
             self.response_body = result
-            self.response_head['Set-Cookie'] = self.Cookie
+            self.send_header('Set-Cookie', self.Cookie)
         # 是静态文件
         else:
+            self.send_header('Content-Type', judge_type(file_path))
+            # if file_path.find("/public") != -1:
+            #     filename = os.path.basename(file_path)
+            #     self.send_header("Content-Disposition", "attachment; filename=" + filename)
+
             # 扩展名,只提供制定类型的静态文件
             extension_name = os.path.splitext(file_path)[1]
             extension_set = {'.css', '.html', '.js'}
             if extension_name in extension_set:
                 self.response_line = ErrorCode.OK
-                self.response_head['Content-Type'] = judge_type(file_path)
                 with open(file_path, 'r', encoding='utf-8', errors='ignore') as fd:
                     data = fd.read()
                 self.response_body = data
             # 其他文件返回
             else:
                 self.response_line = ErrorCode.OK
-                self.response_head['Content-Type'] = judge_type(file_path)
                 with open(file_path, 'rb') as fd:
                     data = fd.read()
                 self.response_body = data
+
+    def send_header(self, keyword, value):
+        self.response_head[keyword] = value
 
     def process_session(self):
         self.session = Session()
@@ -256,4 +261,16 @@ class HttpRequest(object):
         else:
             body = json.dumps(self.response_body, ensure_ascii=False).encode('utf-8', errors='ignore')
 
-        return (self.response_line + util.dict2str(self.response_head) + "\r\n").encode('utf-8') + body
+        head = util.dict2str(self.response_head)
+        headers = (self.response_line + head + "\r\n").encode('utf-8')
+
+        return headers + body
+
+
+def get_file_path(path):
+    if path.find(STATIC_DIR) == -1:
+        file_path = STATIC_DIR + path
+    elif path.find("/" + STATIC_DIR) != -1:
+        file_path = path[path.find(STATIC_DIR):len(path)]
+
+    return file_path
